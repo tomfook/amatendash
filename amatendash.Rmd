@@ -1,0 +1,329 @@
+---
+title: "Amaten Tracker"
+output:
+  flexdashboard::flex_dashboard:
+    orientation: rows 
+runtime: shiny
+---
+
+```{r global, include=FALSE}
+# load data in 'global' chunk so it can be shared by all users of the dashboard
+library(dplyr)
+library(ggplot2)
+library(lubridate)
+```
+
+```{r data, include=FALSE}
+amaten <- read.csv("history2.csv") %>%
+  mutate(
+    timestamp = as.POSIXct(timestamp, tz = "Japan"),
+    ratio = selling_price/face_price,
+    date = as.Date(timestamp, tz = "Japan")
+  )
+```
+
+```{r parameter, include=FALSE}
+lb_chart <- 0.875
+```
+
+History
+=======================================================================
+
+Sidebar{.sidebar}
+-----------------------------------------------------------------------
+target calendar range
+```{r}
+dateInput(
+  "start",
+  label = "start of date range",
+  value = min(amaten$date)
+)
+
+dateInput(
+  "end",
+  label = "end of date range",
+  value = max(amaten$date)
+)
+
+
+numericInput(
+  "ranker",
+  label = "Target rank. Include only top of:",
+  value = 5,
+  min = 1
+)
+
+```
+
+
+
+history of ratio {data-height=700}
+-----------------------------------------------------------------------
+
+### history of ratio
+```{r}
+target <- reactive({
+amaten %>%
+  filter(between(date, input$start, input$end)) %>%
+  arrange(timestamp, ratio) %>%
+  group_by(timestamp) %>%
+  mutate(rank = row_number()) %>%
+  filter(rank <= input$ranker) %>%
+  ungroup
+})
+
+renderPlot({
+target() %>%
+    group_by(timestamp) %>%
+    summarise(ratio = mean(ratio)) %>%
+    ggplot(aes(timestamp, ratio)) +
+      geom_line() +
+      geom_point() +
+      ylim(lb_chart, 1) +
+      scale_x_datetime(date_labels="%Y-%m-%d") +
+      xlab("datetime") + ylab("ave. ratio")
+  })
+```
+
+top record 
+----------------------------------------------------------------------
+
+### top record {.no-mobile}
+```{r global_record}
+renderTable({
+target() %>%
+  arrange(ratio) %>%
+  head(5) %>%
+  transmute(
+    rank = row_number(),
+    datetime = as.character(timestamp),
+    ratio = as.character(ratio),
+    face_price = as.integer(face_price),
+    selling_price = as.integer(selling_price)
+  )
+
+})
+```
+
+top record {.mobile}
+-----------------------------------------------------------------
+
+###  top record
+```{r }
+renderTable({
+target() %>%
+  arrange(ratio) %>%
+  head(5) %>%
+  transmute(
+    datetime = as.character(timestamp),
+    ratio = as.character(ratio),
+    face_price = as.integer(face_price)
+  )
+
+})
+```
+
+
+Seasonality
+================================================ 
+
+Sidebar {.sidebar}
+-----------------------------------------------------------------------
+```{r}
+years <- year(amaten$date)
+selectInput(
+  "y_year",
+  label = "filter year",
+  choices = years,
+  multiple = TRUE,
+  selected = years
+)
+
+months <- month(amaten$date, label = TRUE, locale = "C")
+selectInput(
+  "y_month",
+  label = "filter month",
+  choices = months,
+  multiple = TRUE,
+  selected = months
+)
+
+yms <- floor_date(amaten$date, "month") %>% format("%Y-%m")
+selectInput(
+  "y_ym",
+  label = "filter yearmonth",
+  choices = yms,
+  multiple = TRUE,
+  selected = yms
+)
+
+
+numericInput(
+  "y_ranker",
+  label = "Target rank. Include only top of:",
+  value = 5,
+  min = 1
+)
+
+```
+
+Yearly
+-----------------------------------------
+
+### Yearly
+```{r}
+target_season <- reactive({
+amaten %>%
+  filter(
+    year(timestamp) %in% input$y_year,
+    month(timestamp, label = TRUE, locale = "C") %in% input$y_month,
+    (floor_date(timestamp, "month") %>% format("%Y-%m")) %in% input$y_ym
+    ) %>%
+  arrange(timestamp, ratio) %>%
+  group_by(timestamp) %>%
+  mutate(rank = row_number()) %>%
+  filter(rank <= input$y_ranker) %>%
+  ungroup
+})
+
+renderPlot({
+target_season() %>%
+  group_by(timestamp) %>%
+  summarise(ratio = mean(ratio)) %>%
+  mutate(
+    md = update(timestamp, year = 2018),
+    year = year(timestamp) %>% factor
+  ) %>%
+  ggplot(aes(md, ratio)) +
+    geom_line(aes(group = year, color = year)) +
+    geom_point(aes(color = year)) +
+    ylim(lb_chart,1) +
+    scale_x_datetime(date_labels="%b-%d") +
+    xlab("Month-Day")
+  })
+```
+
+Periodicaly
+------------------------------------------
+### Monthly
+
+```{r}
+renderPlot({
+target_season() %>%
+  mutate(
+    dom = day(timestamp) %>% factor,
+    month = month(timestamp, label = TRUE)
+  ) %>%
+  group_by(dom, month) %>%
+  summarise(ratio = mean(ratio)) %>%
+  ungroup %>%
+  ggplot(aes(dom, ratio)) +
+    geom_line(aes(group = month, color = month)) +
+    geom_point(aes(color = month)) +
+    ylim(lb_chart,1) +
+    #scale_x_datetime(date_labels="%d") +
+    xlab("Day of Month")
+  })
+``` 
+
+### Weekly
+```{r}
+renderPlot({
+target_season() %>%
+  group_by(timestamp) %>%
+  summarise(ratio = mean(ratio)) %>%
+  mutate( dow = wday(timestamp, label = TRUE, locale = "C")) %>%
+  ggplot(aes(dow, ratio)) +
+    geom_boxplot() +
+    ylim(lb_chart, 1) +
+    xlab("Day of Week")
+})
+
+``` 
+
+
+Timing analysis
+=================================================
+
+Sidebar {.sidebar}
+-----------------------------------------------------------------------
+```{r}
+years <- year(amaten$date)
+selectInput(
+  "t_year",
+  label = "filter year",
+  choices = years,
+  multiple = TRUE,
+  selected = years
+)
+
+months <- month(amaten$date, label = TRUE, locale = "C")
+selectInput(
+  "t_month",
+  label = "filter month",
+  choices = months,
+  multiple = TRUE,
+  selected = months
+)
+
+yms <- floor_date(amaten$date, "month") %>% format("%Y-%m")
+selectInput(
+  "t_ym",
+  label = "filter yearmonth",
+  choices = yms,
+  multiple = TRUE,
+  selected = yms
+)
+
+
+numericInput(
+  "t_ranker",
+  label = "Target rank. Include only top of:",
+  value = 5,
+  min = 1
+)
+
+```
+
+Chart
+-----------------------------------------
+
+### hourly distribution
+```{r}
+target_timing <- reactive({
+amaten %>%
+  filter(
+    year(timestamp) %in% input$t_year,
+    month(timestamp, label = TRUE, locale = "C") %in% input$t_month,
+    (floor_date(timestamp, "month") %>% format("%Y-%m")) %in% input$t_ym
+    ) %>%
+  arrange(timestamp, ratio) %>%
+  group_by(timestamp) %>%
+  mutate(rank = row_number()) %>%
+  filter(rank <= input$t_ranker) %>%
+  ungroup
+})
+
+renderPlot({
+target_timing() %>%
+  mutate(
+    hour = hour(timestamp) %>% factor,
+    dow = wday(timestamp, label = TRUE, locale = "C")
+  ) %>%
+  group_by(hour, dow) %>%
+  summarise(ratio = mean(ratio)) %>%
+  ggplot(aes(hour, dow)) +
+    geom_tile(aes(fill = ratio)) 
+})
+ 
+
+```
+
+
+
+Forecast
+================================================
+
+now developing
+
+

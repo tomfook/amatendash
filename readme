@@ -1,0 +1,30 @@
+# how to use
+
+At first, run docker to use rselenium 
+```
+$ docker run -d -p 4444:4444 selenium/standalone-chrome
+```
+
+Data scraping program crawler.R is coded in R.
+To run this code I use Rscript
+```
+$ Rscript crawler.R
+```
+
+
+**Notes ** crantab time is not used now. loop and timer should be used alternatively.
+To collect data automatically, cron will run the program.
+Schedule is asigned in /etc/crontab
+```
+$ crontab -e
+```
+```
+# m h  dom mon dow   command
+0 0 * * * Rscript ~/Documents/shiny-apps/amaten/crawler.R
+```
+
+
+To collect data automatically, run a script having loop with timer
+```
+$ nohup Rscript crawler_looop.R &
+```
