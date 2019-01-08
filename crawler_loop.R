@@ -1,6 +1,9 @@
 ##run docker before start RSelenium
 #docker run -d -p 4444:4444 selenium/standalone-chrome
 
+#parameter
+average_per_day <- 3
+
 library(RSelenium)
 library(rvest)
 library(dplyr)
@@ -32,7 +35,7 @@ while(TRUE){
 
   remDr$close()
 
-  wait <- rexp(n=1, rate = 1/(24*60*60/2))
+  wait <- rexp(n=1, rate = 1/(24*60*60/average_per_day))
   Sys.sleep(wait)
 }
 

@@ -72,6 +72,7 @@ amaten %>%
   ungroup
 })
 
+
 renderPlot({
 target() %>%
     group_by(timestamp) %>%
@@ -81,7 +82,7 @@ target() %>%
       geom_point() +
       ylim(lb_chart, 1) +
       scale_x_datetime(date_labels="%Y-%m-%d") +
-      xlab("datetime") + ylab("ave. ratio")
+      xlab("") + ylab("ave. ratio")
   })
 ```
 
@@ -102,6 +103,18 @@ target() %>%
     selling_price = as.integer(selling_price)
   )
 
+})
+```
+
+### latest observation {data-width=200}
+```{r}
+renderTable({
+target() %>%
+  group_by(datetime = as.character(timestamp)) %>%
+  summarise(ratio = mean(ratio)) %>%
+  ungroup %>%
+  top_n(5, wt = datetime) %>%
+  arrange(desc(datetime))
 })
 ```
 
@@ -215,14 +228,18 @@ target_season() %>%
     month = month(timestamp, label = TRUE)
   ) %>%
   group_by(dom, month) %>%
-  summarise(ratio = mean(ratio)) %>%
+  summarise(
+    ratio.mean = mean(ratio),
+    ratio.max = max(ratio),
+    ratio.min = min(ratio)
+  ) %>%
   ungroup %>%
-  ggplot(aes(dom, ratio)) +
+  ggplot(aes(dom, ratio.mean)) +
     geom_line(aes(group = month, color = month)) +
-    geom_point(aes(color = month)) +
-    ylim(lb_chart,1) +
-    #scale_x_datetime(date_labels="%d") +
-    xlab("Day of Month")
+    geom_pointrange(aes(ymin = ratio.min, ymax = ratio.max, color = month)) +
+    coord_cartesian(ylim=c(lb_chart,1)) +
+    xlab("Day of Month") + ylab("ratio")
+
   })
 ``` 
 
