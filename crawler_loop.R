@@ -2,7 +2,7 @@
 #docker run -d -p 4444:4444 selenium/standalone-chrome
 
 #parameter
-average_per_day <- 3
+average_per_day <- 4
 
 library(RSelenium)
 library(rvest)
@@ -19,21 +19,25 @@ while(TRUE){
   tbl <- read_html(src) %>%
     html_nodes(xpath = "/html/body/div[1]/div/div[2]/div/div[2]/div/div[3]/table") %>%
     html_table 
-  tbl <- tbl[[1]][,2:3]
+  if(length(tbl) > 0){
+    tbl <- tbl[[1]][,2:3]
+    
+    price <- tbl %>%
+      mutate_all(readr::parse_number) %>%
+      set_names(c("face_price", "selling_price")) %>%
+      mutate(timestamp = lubridate::now()) %>%
+      select(timestamp, everything()) %>%
+      write.table(
+        "~/Documents/shiny-apps/amaten/history2.csv",
+        sep = ",",
+        append = TRUE, col.names=FALSE,
+        row.names = FALSE
+      )
   
-  price <- tbl %>%
-    mutate_all(readr::parse_number) %>%
-    set_names(c("face_price", "selling_price")) %>%
-    mutate(timestamp = lubridate::now()) %>%
-    select(timestamp, everything()) %>%
-    write.table(
-      "~/Documents/shiny-apps/amaten/history2.csv",
-      sep = ",",
-      append = TRUE, col.names=FALSE,
-      row.names = FALSE
-    )
-
-  remDr$close()
+    remDr$close()
+  }else{
+    print(paste("Could not read table at", now()))
+  }
 
   wait <- rexp(n=1, rate = 1/(24*60*60/average_per_day))
   Sys.sleep(wait)

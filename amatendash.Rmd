@@ -48,7 +48,7 @@ dateInput(
 
 numericInput(
   "ranker",
-  label = "Target rank. Include only top of:",
+  label = "Target rank. Include top of:",
   value = 5,
   min = 1
 )
@@ -57,7 +57,7 @@ numericInput(
 
 
 
-history of ratio {data-height=700}
+history of ratio {data-height=800}
 -----------------------------------------------------------------------
 
 ### history of ratio
@@ -111,7 +111,7 @@ target() %>%
 renderTable({
 target() %>%
   group_by(datetime = as.character(timestamp)) %>%
-  summarise(ratio = mean(ratio)) %>%
+  summarise(ave.ratio = mean(ratio) %>% format(digits = 4)) %>%
   ungroup %>%
   top_n(5, wt = datetime) %>%
   arrange(desc(datetime))
@@ -173,7 +173,7 @@ selectInput(
 
 numericInput(
   "y_ranker",
-  label = "Target rank. Include only top of:",
+  label = "Target rank. Include top of:",
   value = 5,
   min = 1
 )
@@ -295,7 +295,7 @@ selectInput(
 
 numericInput(
   "t_ranker",
-  label = "Target rank. Include only top of:",
+  label = "Target rank. Include top of:",
   value = 5,
   min = 1
 )
