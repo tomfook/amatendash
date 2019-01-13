@@ -249,7 +249,7 @@ renderPlot({
 target_season() %>%
   group_by(timestamp) %>%
   summarise(ratio = mean(ratio)) %>%
-  mutate( dow = wday(timestamp, label = TRUE, locale = "C")) %>%
+  mutate(dow = wday(timestamp, label = TRUE, locale = "C")) %>%
   ggplot(aes(dow, ratio)) +
     geom_boxplot() +
     ylim(lb_chart, 1) +
@@ -325,7 +325,7 @@ renderPlot({
 target_timing() %>%
   mutate(
     hour = hour(timestamp) %>% factor,
-    dow = wday(timestamp, label = TRUE, locale = "C")
+    dow = wday(timestamp, label = TRUE, locale = "C") %>% reorder(as.numeric(.)*-1)
   ) %>%
   group_by(hour, dow) %>%
   summarise(ratio = mean(ratio)) %>%
@@ -343,4 +343,36 @@ Forecast
 
 now developing
 
+
+Control
+================================================
+
+```{r control}
+textInput(
+  "pw",
+  label = "pw"
+)
+
+numericInput(
+  "inp_samplerate",
+  label = "change sample rate",
+  value = 3,
+  min = 1
+)
+
+actionButton(
+  "submit_samplerate",
+  label="submit"
+)
+
+br()
+br()
+
+actionButton(
+  "observe",
+  label="observe"
+)
+
+
+```
 

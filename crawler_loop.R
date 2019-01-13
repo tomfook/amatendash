@@ -2,7 +2,7 @@
 #docker run -d -p 4444:4444 selenium/standalone-chrome
 
 #parameter
-average_per_day <- 4
+#average_per_day <- 4 #defined external file
 
 library(RSelenium)
 library(rvest)
@@ -10,6 +10,8 @@ library(dplyr)
 library(magrittr)
 
 while(TRUE){
+  source("param.R")
+
   remDr <- remoteDriver(remoteServerAddr = "localhost", port = 4444, browserName = "chrome")
   remDr$open()
   remDr$navigate("https://amaten.com/exhibitions/amazon")
@@ -19,6 +21,7 @@ while(TRUE){
   tbl <- read_html(src) %>%
     html_nodes(xpath = "/html/body/div[1]/div/div[2]/div/div[2]/div/div[3]/table") %>%
     html_table 
+
   if(length(tbl) > 0){
     tbl <- tbl[[1]][,2:3]
     
@@ -32,22 +35,13 @@ while(TRUE){
         sep = ",",
         append = TRUE, col.names=FALSE,
         row.names = FALSE
-      )
-  
-    remDr$close()
+      ) 
   }else{
-    print(paste("Could not read table at", now()))
+    print(paste("Could not read table at", lubridate::now()))
   }
+
+  remDr$close()
 
   wait <- rexp(n=1, rate = 1/(24*60*60/average_per_day))
   Sys.sleep(wait)
-}
-
-  
-
-
-
-
-
-
-
+} 
