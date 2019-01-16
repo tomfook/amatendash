@@ -10,6 +10,7 @@ runtime: shiny
 # load data in 'global' chunk so it can be shared by all users of the dashboard
 library(dplyr)
 library(ggplot2)
+library(scales)
 library(lubridate)
 ```
 
@@ -25,6 +26,7 @@ amaten <- read.csv("history2.csv") %>%
 ```{r parameter, include=FALSE}
 lb_chart <- 0.875
 ```
+
 
 History
 =======================================================================
@@ -94,7 +96,7 @@ top record
 renderTable({
 target() %>%
   arrange(ratio) %>%
-  head(5) %>%
+  head(10) %>%
   transmute(
     rank = row_number(),
     datetime = as.character(timestamp),
@@ -126,7 +128,7 @@ top record {.mobile}
 renderTable({
 target() %>%
   arrange(ratio) %>%
-  head(5) %>%
+  head(10) %>%
   transmute(
     datetime = as.character(timestamp),
     ratio = as.character(ratio),
@@ -183,7 +185,7 @@ numericInput(
 Yearly
 -----------------------------------------
 
-### Yearly
+### Yearly{.no-mobile}
 ```{r}
 target_season <- reactive({
 amaten %>%
@@ -211,14 +213,14 @@ target_season() %>%
     geom_line(aes(group = year, color = year)) +
     geom_point(aes(color = year)) +
     ylim(lb_chart,1) +
-    scale_x_datetime(date_labels="%b-%d") +
-    xlab("Month-Day")
+    scale_x_datetime(date_labels="%b-%d", minor_breaks = date_breaks("day")) +
+    xlab("")
   })
 ```
 
 Periodicaly
 ------------------------------------------
-### Monthly
+### Monthly{.no-mobile}
 
 ```{r}
 renderPlot({
@@ -243,7 +245,7 @@ target_season() %>%
   })
 ``` 
 
-### Weekly
+### Weekly{.no-mobile}
 ```{r}
 renderPlot({
 target_season() %>%
@@ -257,6 +259,69 @@ target_season() %>%
 })
 
 ``` 
+
+charts{.mobile}
+-----------------------------------------------------------------------
+### Yearly
+
+```{r}
+renderPlot({
+target_season() %>%
+  group_by(timestamp) %>%
+  summarise(ratio = mean(ratio)) %>%
+  mutate(
+    md = update(timestamp, year = 2018),
+    year = year(timestamp) %>% factor
+  ) %>%
+  ggplot(aes(md, ratio)) +
+    geom_line(aes(group = year, color = year)) +
+    geom_point(aes(color = year)) +
+    ylim(lb_chart,1) +
+    scale_x_datetime(date_labels="%b-%d", minor_breaks = date_breaks("day")) +
+    xlab("") +
+    theme(legend.position = "top")
+  })
+```
+### Monthly
+
+```{r}
+renderPlot({
+target_season() %>%
+  mutate(
+    dom = day(timestamp) %>% factor,
+    month = month(timestamp, label = TRUE)
+  ) %>%
+  group_by(dom, month) %>%
+  summarise(
+    ratio.mean = mean(ratio),
+    ratio.max = max(ratio),
+    ratio.min = min(ratio)
+  ) %>%
+  ungroup %>%
+  ggplot(aes(dom, ratio.mean)) +
+    geom_line(aes(group = month, color = month)) +
+    geom_pointrange(aes(ymin = ratio.min, ymax = ratio.max, color = month)) +
+    coord_cartesian(ylim=c(lb_chart,1)) +
+    xlab("Day of Month") + ylab("ratio") +
+    theme(legend.position = "top")
+
+  })
+``` 
+
+### Weekly
+```{r}
+renderPlot({
+target_season() %>%
+  group_by(timestamp) %>%
+  summarise(ratio = mean(ratio)) %>%
+  mutate(dow = wday(timestamp, label = TRUE, locale = "C")) %>%
+  ggplot(aes(dow, ratio)) +
+    geom_boxplot() +
+    ylim(lb_chart, 1) +
+    xlab("Day of Week") + 
+    theme(legend.position = "top")
+})
+```
 
 
 Timing analysis
@@ -323,14 +388,11 @@ amaten %>%
 
 renderPlot({
 target_timing() %>%
-  mutate(
-    hour = hour(timestamp) %>% factor,
-    dow = wday(timestamp, label = TRUE, locale = "C") %>% reorder(as.numeric(.)*-1)
-  ) %>%
-  group_by(hour, dow) %>%
+  mutate( hour = hour(timestamp) %>% factor) %>%
+  group_by(hour) %>%
   summarise(ratio = mean(ratio)) %>%
-  ggplot(aes(hour, dow)) +
-    geom_tile(aes(fill = ratio)) 
+  ggplot(aes(hour, ratio)) +
+    geom_point() + geom_line(group = 1)
 })
  
 
@@ -347,32 +409,34 @@ now developing
 Control
 ================================================
 
+now developing
+
 ```{r control}
-textInput(
-  "pw",
-  label = "pw"
-)
-
-numericInput(
-  "inp_samplerate",
-  label = "change sample rate",
-  value = 3,
-  min = 1
-)
-
-actionButton(
-  "submit_samplerate",
-  label="submit"
-)
-
-br()
-br()
-
-actionButton(
-  "observe",
-  label="observe"
-)
-
+#textInput(
+#  "pw",
+#  label = "pw"
+#)
+#
+#numericInput(
+#  "inp_samplerate",
+#  label = "change sample rate",
+#  value = 3,
+#  min = 1
+#)
+#
+#actionButton(
+#  "submit_samplerate",
+#  label="submit"
+#)
+#
+#br()
+#br()
+#
+#actionButton(
+#  "observe",
+#  label="observe"
+#)
+#
 
 ```
 
