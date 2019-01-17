@@ -12,6 +12,8 @@ library(dplyr)
 library(ggplot2)
 library(scales)
 library(lubridate)
+library(dygraphs)
+library(xts)
 ```
 
 ```{r data, include=FALSE}
@@ -74,18 +76,18 @@ amaten %>%
   ungroup
 })
 
-
-renderPlot({
-target() %>%
+renderDygraph({
+  target() %>%
     group_by(timestamp) %>%
     summarise(ratio = mean(ratio)) %>%
-    ggplot(aes(timestamp, ratio)) +
-      geom_line() +
-      geom_point() +
-      ylim(lb_chart, 1) +
-      scale_x_datetime(date_labels="%Y-%m-%d") +
-      xlab("") + ylab("ave. ratio")
-  })
+    xts(x = .[["ratio"]], order.by = .[["timestamp"]]) %>%
+    dygraph %>%
+    dySeries("V1", label = "Ave. Ratio") %>%
+    dyRangeSelector(height = 20) %>%
+    dyOptions(drawPoints = TRUE, pointSize = 3) %>%
+    dyHighlight(highlightCircleSize = 5) %>%
+    dyAxis("y", label = "ave.ratio", valueRange=c(lb_chart, 1))
+})
 ```
 
 top record 
