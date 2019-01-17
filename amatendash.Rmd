@@ -64,7 +64,6 @@ numericInput(
 history of ratio {data-height=800}
 -----------------------------------------------------------------------
 
-### history of ratio
 ```{r}
 target <- reactive({
 amaten %>%
@@ -75,7 +74,10 @@ amaten %>%
   filter(rank <= input$ranker) %>%
   ungroup
 })
+```
 
+### history of ratio {.no-mobile}
+```{r}
 renderDygraph({
   target() %>%
     group_by(timestamp) %>%
@@ -117,20 +119,34 @@ target() %>%
   group_by(datetime = as.character(timestamp)) %>%
   summarise(ave.ratio = mean(ratio) %>% format(digits = 4)) %>%
   ungroup %>%
-  top_n(5, wt = datetime) %>%
+  top_n(10, wt = datetime) %>%
   arrange(desc(datetime))
 })
 ```
 
 top record {.mobile}
 -----------------------------------------------------------------
+### history
+```{r}
+renderPlot({
+  target() %>%
+    group_by(timestamp) %>%
+    summarise(ratio = mean(ratio)) %>%
+    ggplot(aes(timestamp, ratio)) +
+      geom_line() +
+      geom_point() +
+      ylim(lb_chart, 1) +
+      scale_x_datetime(date_labels="%Y-%m-%d") +
+      xlab("") + ylab("ave. ratio")
+})
+```
 
 ###  top record
 ```{r }
 renderTable({
 target() %>%
   arrange(ratio) %>%
-  head(10) %>%
+  head(5) %>%
   transmute(
     datetime = as.character(timestamp),
     ratio = as.character(ratio),
