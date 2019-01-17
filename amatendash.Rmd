@@ -112,7 +112,7 @@ target() %>%
 })
 ```
 
-### latest observation {data-width=200}
+### latest observation {data-width=200, .no-mobile}
 ```{r}
 renderTable({
 target() %>%
@@ -153,6 +153,18 @@ target() %>%
     face_price = as.integer(face_price)
   )
 
+})
+```
+
+### latest observation 
+```{r}
+renderTable({
+target() %>%
+  group_by(datetime = as.character(timestamp)) %>%
+  summarise(ave.ratio = mean(ratio) %>% format(digits = 4)) %>%
+  ungroup %>%
+  top_n(5, wt = datetime) %>%
+  arrange(desc(datetime))
 })
 ```
 
