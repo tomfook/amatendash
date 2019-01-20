@@ -5,8 +5,14 @@ At first, run docker to use rselenium
 $ docker run -d -p 4444:4444 selenium/standalone-chrome
 ```
 
-Data scraping program crawler.R is coded in R.
-To run this code I use Rscript
+Data scraping program crawler.R and crawler_loop.R is coded in R.
+
+To collect data automatically, run a script having loop with timer
+```
+$ nohup Rscript crawler_looop.R &
+```
+
+To run once, 
 ```
 $ Rscript crawler.R
 ```
@@ -21,10 +27,4 @@ $ crontab -e
 ```
 # m h  dom mon dow   command
 0 0 * * * Rscript ~/Documents/shiny-apps/amaten/crawler.R
-```
-
-
-To collect data automatically, run a script having loop with timer
-```
-$ nohup Rscript crawler_looop.R &
-```
+``` 
