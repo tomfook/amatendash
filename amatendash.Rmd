@@ -86,7 +86,7 @@ renderDygraph({
     dygraph %>%
     dySeries("V1", label = "Ave. Ratio") %>%
     dyRangeSelector(height = 20) %>%
-    dyOptions(drawPoints = TRUE, pointSize = 3) %>%
+    dyOptions(drawPoints = TRUE, pointSize = 3, digitsAfterDecimal = 4) %>%
     dyHighlight(highlightCircleSize = 5) %>%
     dyAxis("y", label = "ave.ratio", valueRange=c(lb_chart, 1))
 })
@@ -312,6 +312,7 @@ target_season() %>%
     theme(legend.position = "top")
   })
 ```
+
 ### Monthly
 
 ```{r}
