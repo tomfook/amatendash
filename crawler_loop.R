@@ -1,9 +1,6 @@
 ##run docker before start RSelenium
 #docker run -d -p 4444:4444 selenium/standalone-chrome
 
-#parameter
-#average_per_day <- 4 #defined external file
-
 library(RSelenium)
 library(rvest)
 library(dplyr)
@@ -31,7 +28,7 @@ while(TRUE){
       mutate(timestamp = lubridate::now()) %>%
       select(timestamp, everything()) %>%
       write.table(
-        "~/Documents/shiny-apps/amaten/history2.csv",
+        "history2.csv",
         sep = ",",
         append = TRUE, col.names=FALSE,
         row.names = FALSE
