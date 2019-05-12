@@ -27,6 +27,9 @@ amaten <- read.csv("history2.csv") %>%
 
 ```{r parameter, include=FALSE}
 lb_chart <- 0.875
+
+NUM_YM_MONTHLY <- 5
+NUM_YM_WEEKLY <- 12
 ```
 
 
@@ -49,6 +52,12 @@ dateInput(
   value = max(amaten$date)
 )
 
+numericInput(
+  "maxprice",
+  label = "Max price. Include below:",
+  value = 200000,
+  step = 10000
+ )
 
 numericInput(
   "ranker",
@@ -56,6 +65,7 @@ numericInput(
   value = 5,
   min = 1
 )
+
 
 ```
 
@@ -70,8 +80,10 @@ amaten %>%
   filter(between(date, input$start, input$end)) %>%
   arrange(timestamp, ratio) %>%
   group_by(timestamp) %>%
-  mutate(rank = row_number()) %>%
-  filter(rank <= input$ranker) %>%
+  filter(
+    selling_price <= input$maxprice,
+    row_number() <= input$ranker
+  ) %>%
   ungroup
 })
 ```
@@ -86,7 +98,7 @@ renderDygraph({
     dygraph %>%
     dySeries("V1", label = "Ave. Ratio") %>%
     dyRangeSelector(height = 20) %>%
-    dyOptions(drawPoints = TRUE, pointSize = 3, digitsAfterDecimal = 4) %>%
+    #dyOptions(drawPoints = TRUE, pointSize = 3, digitsAfterDecimal = 4) %>%
     dyHighlight(highlightCircleSize = 5) %>%
     dyAxis("y", label = "ave.ratio", valueRange=c(lb_chart, 1))
 })
@@ -124,6 +136,7 @@ target() %>%
 })
 ```
 
+<!--
 top record {.mobile}
 -----------------------------------------------------------------
 ### history
@@ -167,6 +180,7 @@ target() %>%
   arrange(desc(datetime))
 })
 ```
+-->
 
 
 Seasonality
@@ -202,13 +216,19 @@ selectInput(
   selected = yms
 )
 
+numericInput(
+  "y_maxprice",
+  label = "Max price. Include below:",
+  value = 200000,
+  step = 10000
+ )
 
 numericInput(
   "y_ranker",
   label = "Target rank. Include top of:",
   value = 5,
   min = 1
-)
+) 
 
 ```
 
@@ -219,29 +239,36 @@ Yearly
 ```{r}
 target_season <- reactive({
 amaten %>%
+  mutate(
+    year = year(timestamp),
+    ym = floor_date(timestamp, "month"),
+    rank_ym = dense_rank(as.integer(ym) * -1)
+  ) %>%
   filter(
-    year(timestamp) %in% input$y_year,
+    year %in% input$y_year,
     month(timestamp, label = TRUE, locale = "C") %in% input$y_month,
     (floor_date(timestamp, "month") %>% format("%Y-%m")) %in% input$y_ym
     ) %>%
   arrange(timestamp, ratio) %>%
   group_by(timestamp) %>%
-  mutate(rank = row_number()) %>%
-  filter(rank <= input$y_ranker) %>%
+  filter(
+    selling_price <= input$y_maxprice,
+    row_number() <= input$y_ranker
+  ) %>%
   ungroup
 })
 
 renderPlot({
 target_season() %>%
-  group_by(timestamp) %>%
+  group_by(timestamp, year) %>%
   summarise(ratio = mean(ratio)) %>%
   mutate(
     md = update(timestamp, year = 2018),
-    year = year(timestamp) %>% factor
+    year = year %>% factor
   ) %>%
   ggplot(aes(md, ratio)) +
     geom_line(aes(group = year, color = year)) +
-    geom_point(aes(color = year)) +
+    #geom_point(aes(color = year)) +
     ylim(lb_chart,1) +
     scale_x_datetime(date_labels="%b-%d", minor_breaks = date_breaks("day")) +
     xlab("")
@@ -250,46 +277,82 @@ target_season() %>%
 
 Periodicaly
 ------------------------------------------
-### Monthly{.no-mobile}
+### Monthly {.no-mobile}
 
 ```{r}
+#renderPlot({
+#target_season() %>%
+#  filter(year == max(input$y_year)) %>%
+#  mutate(
+#    dom = day(timestamp) %>% factor,
+#    month = month(timestamp, label = TRUE)
+#  ) %>%
+#  group_by(dom, month) %>%
+#  summarise(
+#    ratio.mean = mean(ratio),
+#    ratio.max = max(ratio),
+#    ratio.min = min(ratio)
+#  ) %>%
+#  ungroup %>%
+#  ggplot(aes(dom, ratio.mean)) +
+#    geom_line(aes(group = month, color = month)) +
+#    geom_pointrange(aes(ymin = ratio.min, ymax = ratio.max, color = month)) +
+#    coord_cartesian(ylim=c(lb_chart,1)) +
+#    xlab("Day of Month") + ylab("ratio") 
+#  })
+
 renderPlot({
 target_season() %>%
+  filter(rank_ym <= NUM_YM_MONTHLY) %>%
   mutate(
-    dom = day(timestamp) %>% factor,
-    month = month(timestamp, label = TRUE)
+    dom = update(timestamp, year = 2019, month = 1),
+    ym = ym %>% format("%Y-%m")
   ) %>%
-  group_by(dom, month) %>%
-  summarise(
-    ratio.mean = mean(ratio),
-    ratio.max = max(ratio),
-    ratio.min = min(ratio)
-  ) %>%
-  ungroup %>%
-  ggplot(aes(dom, ratio.mean)) +
-    geom_line(aes(group = month, color = month)) +
-    geom_pointrange(aes(ymin = ratio.min, ymax = ratio.max, color = month)) +
-    coord_cartesian(ylim=c(lb_chart,1)) +
+  group_by(dom, ym) %>%
+  summarise(ratio = mean(ratio)) %>%
+  ggplot(aes(dom, ratio)) +
+    geom_line(aes(group = ym, color = ym), alpha = 0.8, size = 0.8) +
+    #geom_point(aes(color = ym, shape = ym), alpha = 0.7) +
+    coord_cartesian(ylim = c(lb_chart, 1)) +
+    scale_x_datetime(
+      labels = date_format("%d"),
+      breaks = ymd_h(2019010101) + days(0:6 * 5)
+    ) +
     xlab("Day of Month") + ylab("ratio")
 
-  })
+})
 ``` 
 
 ### Weekly{.no-mobile}
 ```{r}
 renderPlot({
+#target_season() %>%
+#  group_by(timestamp) %>%
+#  summarise(ratio = mean(ratio)) %>%
+#  mutate(dow = wday(timestamp, label = TRUE, locale = "C")) %>%
+#  ggplot(aes(dow, ratio)) +
+#    geom_boxplot() +
+#    ylim(lb_chart, 1) +
+#    xlab("Day of Week")
+
 target_season() %>%
-  group_by(timestamp) %>%
+  filter(rank_ym <= NUM_YM_WEEKLY) %>%
+  mutate(
+    dow = wday(timestamp, label = TRUE),
+    ym = ym %>% format("%Y-%m")
+  ) %>%
+  group_by(dow, ym) %>%
   summarise(ratio = mean(ratio)) %>%
-  mutate(dow = wday(timestamp, label = TRUE, locale = "C")) %>%
-  ggplot(aes(dow, ratio)) +
-    geom_boxplot() +
-    ylim(lb_chart, 1) +
-    xlab("Day of Week")
+  ggplot(aes(ym, dow)) +
+    geom_tile(aes(fill = ratio)) +
+    scale_y_discrete(limits = rev(c("Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"))) +
+    xlab("") + ylab("")
+
 })
 
 ``` 
 
+<!--
 charts{.mobile}
 -----------------------------------------------------------------------
 ### Yearly
@@ -301,7 +364,7 @@ target_season() %>%
   summarise(ratio = mean(ratio)) %>%
   mutate(
     md = update(timestamp, year = 2018),
-    year = year(timestamp) %>% factor
+    year = year %>% factor
   ) %>%
   ggplot(aes(md, ratio)) +
     geom_line(aes(group = year, color = year)) +
@@ -318,6 +381,7 @@ target_season() %>%
 ```{r}
 renderPlot({
 target_season() %>%
+  #filter(year == newest_year) %>%
   mutate(
     dom = day(timestamp) %>% factor,
     month = month(timestamp, label = TRUE)
@@ -353,6 +417,7 @@ target_season() %>%
     theme(legend.position = "top")
 })
 ```
+-->
 
 
 Timing analysis
