@@ -29,7 +29,7 @@ amaten <- read.csv("history2.csv") %>%
 lb_chart <- 0.875
 
 NUM_YM_MONTHLY <- 5
-NUM_YM_WEEKLY <- 12
+NUM_YW_WEEKLY <- 5
 ```
 
 
@@ -88,7 +88,7 @@ amaten %>%
 })
 ```
 
-### history of ratio {.no-mobile}
+### history of ratio 
 ```{r}
 renderDygraph({
   target() %>%
@@ -107,7 +107,7 @@ renderDygraph({
 top record 
 ----------------------------------------------------------------------
 
-### top record {.no-mobile}
+### top record 
 ```{r global_record}
 renderTable({
 target() %>%
@@ -124,7 +124,7 @@ target() %>%
 })
 ```
 
-### latest observation {data-width=200, .no-mobile}
+### latest observation {data-width=200}
 ```{r}
 renderTable({
 target() %>%
@@ -235,20 +235,20 @@ numericInput(
 Yearly
 -----------------------------------------
 
-### Yearly{.no-mobile}
+### Yearly
 ```{r}
 target_season <- reactive({
 amaten %>%
   mutate(
     year = year(timestamp),
     ym = floor_date(timestamp, "month"),
-    rank_ym = dense_rank(as.integer(ym) * -1)
+    rank_ym = dense_rank(as.integer(ym) * -1),
   ) %>%
   filter(
     year %in% input$y_year,
     month(timestamp, label = TRUE, locale = "C") %in% input$y_month,
-    (floor_date(timestamp, "month") %>% format("%Y-%m")) %in% input$y_ym
-    ) %>%
+    format(ym, "%Y-%m") %in% input$y_ym
+  ) %>%
   arrange(timestamp, ratio) %>%
   group_by(timestamp) %>%
   filter(
@@ -264,7 +264,7 @@ target_season() %>%
   summarise(ratio = mean(ratio)) %>%
   mutate(
     md = update(timestamp, year = 2018),
-    year = year %>% factor
+    year = factor(year)
   ) %>%
   ggplot(aes(md, ratio)) +
     geom_line(aes(group = year, color = year)) +
@@ -277,9 +277,10 @@ target_season() %>%
 
 Periodicaly
 ------------------------------------------
-### Monthly {.no-mobile}
+### Monthly 
 
 ```{r}
+
 #renderPlot({
 #target_season() %>%
 #  filter(year == max(input$y_year)) %>%
@@ -306,7 +307,7 @@ target_season() %>%
   filter(rank_ym <= NUM_YM_MONTHLY) %>%
   mutate(
     dom = update(timestamp, year = 2019, month = 1),
-    ym = ym %>% format("%Y-%m")
+    ym = format(ym, "%Y-%m")
   ) %>%
   group_by(dom, ym) %>%
   summarise(ratio = mean(ratio)) %>%
@@ -323,7 +324,8 @@ target_season() %>%
 })
 ``` 
 
-### Weekly{.no-mobile}
+### Weekly
+
 ```{r}
 renderPlot({
 #target_season() %>%
@@ -335,18 +337,32 @@ renderPlot({
 #    ylim(lb_chart, 1) +
 #    xlab("Day of Week")
 
+#target_season() %>%
+#  filter(rank_ym <= NUM_YM_WEEKLY) %>%
+#  mutate(
+#    dow = wday(timestamp, label = TRUE),
+#    ym = ym %>% format("%Y-%m")
+#  ) %>%
+#  group_by(dow, ym) %>%
+#  summarise(ratio = mean(ratio)) %>%
+#  ggplot(aes(ym, dow)) +
+#    geom_tile(aes(fill = ratio)) +
+#    scale_y_discrete(limits = rev(c("Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"))) +
+#    xlab("") + ylab("")
+
 target_season() %>%
-  filter(rank_ym <= NUM_YM_WEEKLY) %>%
   mutate(
-    dow = wday(timestamp, label = TRUE),
-    ym = ym %>% format("%Y-%m")
+    yw = floor_date(timestamp, "week"),
+    rank_yw = dense_rank(as.integer(yw) * -1)
   ) %>%
-  group_by(dow, ym) %>%
+  filter(rank_yw <= NUM_YW_WEEKLY) %>%
+  group_by(ddow = timestamp - yw, yw = factor(yw)) %>%
   summarise(ratio = mean(ratio)) %>%
-  ggplot(aes(ym, dow)) +
-    geom_tile(aes(fill = ratio)) +
-    scale_y_discrete(limits = rev(c("Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"))) +
-    xlab("") + ylab("")
+  ggplot(aes(ddow, ratio)) +
+    geom_line(aes(group = yw, color = yw), alpha = 0.8, size = 0.8) +
+    scale_x_continuous(breaks = seq(from = 0, by = 1440, length.out = 7), labels = c("Sun", "Mon", "Tue", "Wed", "Thr", "Fri", "Sat")) +
+    ylim(lb_chart, 1)
+  
 
 })
 
