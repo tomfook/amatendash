@@ -100,6 +100,7 @@ renderDygraph({
     dyRangeSelector(height = 20) %>%
     dyOptions(digitsAfterDecimal = 4) %>%
     dyHighlight(highlightCircleSize = 5) %>%
+    dyRangeSelector(dateWindow = as.character(today () - c(100, 0))) %>%
     dyAxis("y", label = "ave.ratio", valueRange=c(lb_chart, 1))
 })
 ```
@@ -436,7 +437,7 @@ target_season() %>%
 -->
 
 
-Timing analysis
+Stat analysis
 =================================================
 
 Sidebar {.sidebar}
@@ -469,6 +470,13 @@ selectInput(
   selected = yms
 )
 
+numericInput(
+  "t_maxprice",
+  label = "Max price. Include below:",
+  value = 200000,
+  step = 10000
+ )
+
 
 numericInput(
   "t_ranker",
@@ -493,18 +501,28 @@ amaten %>%
     ) %>%
   arrange(timestamp, ratio) %>%
   group_by(timestamp) %>%
-  mutate(rank = row_number()) %>%
-  filter(rank <= input$t_ranker) %>%
+  filter(
+    selling_price <= input$t_maxprice,
+    row_number() <= input$t_ranker
+  ) %>%
   ungroup
 })
 
 renderPlot({
 target_timing() %>%
-  mutate( hour = hour(timestamp) %>% factor) %>%
-  group_by(hour) %>%
+  group_by(timestamp) %>%
   summarise(ratio = mean(ratio)) %>%
-  ggplot(aes(hour, ratio)) +
-    geom_point() + geom_line(group = 1)
+  mutate(
+    hour = hour(timestamp),
+    date = as_date(timestamp)
+  ) %>%
+  group_by(date) %>%
+  mutate(mratio = exp(mean(log(ratio)))) %>%
+  ungroup %>%
+  mutate(multiple = ratio / mratio) %>%
+  ggplot(aes(hour, multiple)) +
+    geom_boxplot(aes(group = hour)) +
+    scale_y_log10()
 })
  
 
