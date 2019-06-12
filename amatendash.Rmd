@@ -27,7 +27,7 @@ amaten <- read.csv("history2.csv") %>%
 ```
 
 ```{r parameter, include=FALSE}
-lb_chart <- 0.875
+lb_chart <- 0.85
 
 NUM_YM_MONTHLY <- 5
 NUM_YW_WEEKLY <- 5
