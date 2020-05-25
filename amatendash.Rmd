@@ -9,6 +9,7 @@ runtime: shiny
 ```{r global, include=FALSE}
 # load data in 'global' chunk so it can be shared by all users of the dashboard
 library(dplyr)
+library(readr)
 library(ggplot2)
 library(purrr)
 library(scales)
@@ -18,16 +19,17 @@ library(xts)
 ```
 
 ```{r data, include=FALSE}
-amaten <- read.csv("history2.csv") %>%
+amaten <- read_csv("history2.csv", col_types = "cdi", col_names = c("timestamp", "face_price", "selling_price"), skip = 1) %>%                    
   mutate(
-    timestamp = as.POSIXct(timestamp, tz = "Japan"),
+    timestamp = ymd_hms(timestamp, tz = "Japan"),
     ratio = selling_price/face_price,
-    date = as.Date(timestamp, tz = "Japan")
-  )
+    date = as_date(timestamp)
+  ) %>%
+  arrange(timestamp, ratio) 
 ```
 
 ```{r parameter, include=FALSE}
-lb_chart <- 0.85
+lb_chart <- 0.8
 
 NUM_YM_MONTHLY <- 5
 NUM_YW_WEEKLY <- 5
@@ -40,7 +42,7 @@ History
 Sidebar{.sidebar}
 -----------------------------------------------------------------------
 target calendar range
-```{r}
+```{r sidebar01}
 dateInput(
   "start",
   label = "start of date range",
@@ -71,26 +73,24 @@ numericInput(
 ```
 
 
-
 history of ratio {data-height=800}
 -----------------------------------------------------------------------
 
-```{r}
+```{r define_target}
 target <- reactive({
 amaten %>%
   filter(between(date, input$start, input$end)) %>%
-  arrange(timestamp, ratio) %>%
   group_by(timestamp) %>%
   filter(
     selling_price <= input$maxprice,
     dplyr::row_number() <= input$ranker
   ) %>%
-  ungroup
+  ungroup 
 })
 ```
 
 ### history of ratio 
-```{r}
+```{r renderdygraph}
 renderDygraph({
   target() %>%
     group_by(timestamp) %>%
@@ -101,7 +101,7 @@ renderDygraph({
     dyRangeSelector(height = 20) %>%
     dyOptions(digitsAfterDecimal = 4) %>%
     dyHighlight(highlightCircleSize = 5) %>%
-    dyRangeSelector(dateWindow = as.character(today () - c(100, 0))) %>%
+    dyRangeSelector(dateWindow = as.character(max(amaten$date) - c(100, 0))) %>%
     dyAxis("y", label = "ave.ratio", valueRange=c(lb_chart, 1))
 })
 ```
@@ -127,7 +127,7 @@ target() %>%
 ```
 
 ### latest observation {data-width=200}
-```{r}
+```{r latest_observation}
 renderTable({
 target() %>%
   group_by(datetime = as.character(timestamp)) %>%
@@ -138,15 +138,16 @@ target() %>%
 })
 ```
 
-```
+
  
 Seasonality
 ================================================ 
 
 Sidebar {.sidebar}
 -----------------------------------------------------------------------
-```{r}
-years <- year(amaten$date)
+
+```{r sidebar02}
+years <- year(amaten$date) %>% unique
 selectInput(
   "y_year",
   label = "filter year",
@@ -155,7 +156,7 @@ selectInput(
   selected = years
 )
 
-months <- month(amaten$date, label = TRUE, locale = "C")
+months <- month(amaten$date, label = TRUE, locale = "C") %>% unique
 selectInput(
   "y_month",
   label = "filter month",
@@ -164,7 +165,7 @@ selectInput(
   selected = months
 )
 
-yms <- floor_date(amaten$date, "month") %>% format("%Y-%m")
+yms <- floor_date(amaten$date, "month") %>% unique %>% format("%Y-%m")
 selectInput(
   "y_ym",
   label = "filter yearmonth",
@@ -193,7 +194,7 @@ Yearly
 -----------------------------------------
 
 ### Yearly
-```{r}
+```{r target_season}
 target_season <- reactive({
 amaten %>%
   mutate(
@@ -221,7 +222,7 @@ target_season() %>%
   summarise(ratio = mean(ratio)) %>%
   mutate(
     md = update(timestamp, year = 2018),
-    year = factor(year)
+    year = as.character(year)
   ) %>%
   ggplot(aes(md, ratio)) +
     geom_line(aes(group = year, color = year)) +
@@ -236,7 +237,7 @@ Periodicaly
 ------------------------------------------
 ### Monthly 
 
-```{r}
+```{r monthly_periodicaly}
  
 renderPlot({
 target_season() %>%
@@ -262,7 +263,7 @@ target_season() %>%
 
 ### Weekly
 
-```{r}
+```{r weekly}
 renderPlot({
  target_season() %>%
   mutate(
@@ -287,8 +288,8 @@ Statistics
 
 Sidebar {.sidebar}
 -----------------------------------------------------------------------
-```{r}
-years <- year(amaten$date)
+```{r sidebar03}
+years <- year(amaten$date) %>% unique
 selectInput(
   "t_year",
   label = "filter year",
@@ -297,7 +298,7 @@ selectInput(
   selected = years
 )
 
-months <- month(amaten$date, label = TRUE, locale = "C")
+months <- month(amaten$date, label = TRUE, locale = "C") %>% unique
 selectInput(
   "t_month",
   label = "filter month",
@@ -306,7 +307,7 @@ selectInput(
   selected = months
 )
 
-yms <- floor_date(amaten$date, "month") %>% format("%Y-%m")
+yms <- floor_date(amaten$date, "month") %>% unique %>% format("%Y-%m") 
 selectInput(
   "t_ym",
   label = "filter yearmonth",
@@ -336,7 +337,9 @@ Chart1
 -----------------------------------------
 
 ### deviation in each hour
-```{r}
+
+```{r dev1}
+
 target_timing <- reactive({
 amaten %>%
   filter(
@@ -382,7 +385,7 @@ Chart2
 ----------------------------------------- 
 
 ### monthly distribution
-```{r}
+```{r dev2}
 renderPlot({
 target_timing() %>%
   mutate(ym = floor_date(timestamp, "month") %>% format("%Y-%m")) %>% 
@@ -402,33 +405,4 @@ Control
 ================================================
 
 now developing
-
-```{r control}
-#textInput(
-#  "pw",
-#  label = "pw"
-#)
-#
-#numericInput(
-#  "inp_samplerate",
-#  label = "change sample rate",
-#  value = 3,
-#  min = 1
-#)
-#
-#actionButton(
-#  "submit_samplerate",
-#  label="submit"
-#)
-#
-#br()
-#br()
-#
-#actionButton(
-#  "observe",
-#  label="observe"
-#)
-#
-
-```
 
