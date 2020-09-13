@@ -14,7 +14,7 @@ Sys.sleep(1)
 src <- remDr$getPageSource()[[1]]
 
 tbl <- read_html(src) %>%
-  html_nodes(xpath = "/html/body/div[1]/div/div[2]/div/div[2]/div/div[3]/table") %>%
+  html_nodes(xpath = "/html/body/div[1]/div/div[2]/div/div[2]/div/div[4]/table") %>%
   html_table 
 tbl <- tbl[[1]][,2:3]
 
